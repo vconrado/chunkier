@@ -19,19 +19,19 @@ struct arguments arguments;
 
 typedef struct __dimension{
     char name[16];
-    uint32_t start;
-    uint32_t end;
-    uint32_t overlap;
-    uint32_t chunk_length;
-    uint32_t delta; // distancia entre cada elemento nessa dimensao
-    uint32_t n_chunks; // numero de chunks nessa dimensao
+    uint64_t start;
+    uint64_t end;
+    uint64_t overlap;
+    uint64_t chunk_length;
+    uint64_t delta; // distancia entre cada elemento nessa dimensao
+    uint64_t n_chunks; // numero de chunks nessa dimensao
 } dimenstion_t;
 
 typedef struct __array_schema{
-    uint32_t dim_len;
+    uint64_t dim_len;
     dimenstion_t **dimensions;
     uint16_t attr_type; // 1: uint32_t, 2: uint64_t, 3: float, 4: double
-    uint32_t chunk_length;
+    uint64_t chunk_length;
 } array_schema_t;
 
 void print_array_schema(array_schema_t* array_schema);
@@ -42,7 +42,7 @@ void create_array(array_schema_t* array_schema);
 void create_array(array_schema_t* array_schema);
 void create_chunk(  array_schema_t* array_schema, 
                     char *file_path, 
-                    uint32_t* chunk_idx, 
+                    uint64_t* chunk_idx, 
                     char *buf);
 size_t get_type_size(uint16_t attr_type);
 
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     double dif = (double) end-start;
     printf("Total Time: %f us\n",dif);
     
-    uint32_t n_ele=1;
+    uint64_t n_ele=1;
     for(dim=0; dim<array_schema->dim_len;++dim){
         n_ele*=(array_schema->dimensions[dim]->end - array_schema->dimensions[dim]->start +1);
     }
@@ -97,7 +97,7 @@ void print_array_schema(array_schema_t* array_schema){
         if(i>0){
             printf(";");
         }
-        printf("%s:%d:%d:%d:%d", 
+        printf("%s:%ld:%ld:%ld:%ld", 
                 array_schema->dimensions[i]->name,
                 array_schema->dimensions[i]->start,
                 array_schema->dimensions[i]->end,
@@ -107,12 +107,12 @@ void print_array_schema(array_schema_t* array_schema){
     printf("]\n");
     printf("dim: (delta,n_chunks)\n");
     for(i=0; i<array_schema->dim_len; ++i){
-    printf("%s: (%d,%d)\n", 
+    printf("%s: (%ld,%ld)\n", 
             array_schema->dimensions[i]->name,
             array_schema->dimensions[i]->delta, 
             array_schema->dimensions[i]->n_chunks);
     }
-    printf("total chunk len: %d\n", array_schema->chunk_length);
+    printf("total chunk len: %ld\n", array_schema->chunk_length);
 }
 
 
@@ -129,27 +129,27 @@ array_schema_t* exemple_array_schema(char *array_schema){
     dimenstion_t* col = (dimenstion_t*)malloc(sizeof(dimenstion_t));
     sprintf(col->name,"col");
     col->start = 1;
-    col->end = 1000;
+    col->end = 50000;
     col->overlap = 0;
-    col->chunk_length = 100;
+    col->chunk_length = 2000;
     col->delta = 1;
     col->n_chunks = (col->end - col->start + 1)/col->chunk_length;
     
     dimenstion_t* row = (dimenstion_t*)malloc(sizeof(dimenstion_t));
     sprintf(row->name,"row");
     row->start = 1;
-    row->end = 1000;
+    row->end = 50000;
     row->overlap = 0;
-    row->chunk_length = 500;
+    row->chunk_length = 2000;
     row->delta = col->delta*(col->end - col->start + 1);
     row->n_chunks = (row->end - row->start + 1)/row->chunk_length;
 
     dimenstion_t* time = (dimenstion_t*)malloc(sizeof(dimenstion_t));
     sprintf(time->name,"time");
     time->start = 1;
-    time->end = 2;
+    time->end = 10;
     time->overlap = 0;
-    time->chunk_length = 1;
+    time->chunk_length = 2;
     time->delta = row->delta*(row->end - row->start + 1);
     time->n_chunks = (time->end - time->start + 1)/time->chunk_length;
     
@@ -179,10 +179,10 @@ array_schema_t* exemple_array_schema(char *array_schema){
 
 void create_array(array_schema_t* array_schema){
     int c, dim;
-    uint32_t *chunk_idx;
+    uint64_t *chunk_idx;
     char *buf  = (char*)malloc(get_type_size(array_schema->attr_type)*array_schema->chunk_length);
-    uint32_t total_chunks = 1;
-    chunk_idx = (uint32_t *)malloc(sizeof(uint32_t)*array_schema->dim_len);
+    uint64_t total_chunks = 1;
+    chunk_idx = (uint64_t *)malloc(sizeof(uint64_t)*array_schema->dim_len);
     for(dim=0; dim<array_schema->dim_len; ++dim){
         total_chunks*= array_schema->dimensions[dim]->n_chunks;
     }
@@ -216,12 +216,12 @@ void create_array(array_schema_t* array_schema){
 
 void create_chunk(  array_schema_t* array_schema, 
                     char *file_path, 
-                    uint32_t* chunk_idx, 
+                    uint64_t* chunk_idx, 
                     char *buf){
     int dim;
     uint64_t start_value;
-    uint32_t chunk_id =0;
-    uint32_t acc_n_chunks = 0;
+    uint64_t chunk_id =0;
+    uint64_t acc_n_chunks = 0;
     uint64_t i;
     FILE *f;
     if(arguments.verbose) {
@@ -229,7 +229,7 @@ void create_chunk(  array_schema_t* array_schema,
         printf("\tpath: %s\n", file_path);
         printf("\tindexes: ");
         for(dim=0; dim<array_schema->dim_len; ++dim){
-            printf("%d,", chunk_idx[dim]
+            printf("%ld,", chunk_idx[dim]
                             /array_schema->dimensions[dim]->chunk_length);
         }
         printf("\n");
@@ -242,7 +242,7 @@ void create_chunk(  array_schema_t* array_schema,
     }
     start_value = chunk_id*array_schema->chunk_length;
     if(arguments.verbose) {
-        printf("\tchunk_id: %d, start_value: %ld\n", chunk_id, start_value);
+        printf("\tchunk_id: %ld, start_value: %ld\n", chunk_id, start_value);
     }
     
     f = fopen(file_path, "w");
@@ -366,142 +366,4 @@ array_schema_t* parse_array_schema(char *array_schema){
     //regfree(&regex);
     //printf("pronto\n");
     */
-}
-
-
-
-
-
-// ###########################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-int check_params(uint32_t x_size,
-                 uint32_t x_chunk_size,
-                 uint32_t y_size,
-                 uint32_t y_chunk_size,
-                 uint32_t z_size,
-                 uint32_t z_chunk_size,
-                 uint32_t data_size) {
-  if ((x_chunk_size < 1) || (y_chunk_size < 1) || (z_chunk_size < 1)) {
-    fprintf(stderr, "Chunk size must be > 1.\n");
-    return 1;
-  }
-
-  if ((x_size < x_chunk_size) || (y_size < y_chunk_size) ||
-      (z_size < z_chunk_size)) {
-    fprintf(stderr, "Domain size must equal or greather than chunk size.\n");
-    return 2;
-  }
-
-  if (data_size < 1) {
-    fprintf(stderr, "Data size must be > 1.\n");
-    return 3;
-  }
-  return 0;
-}
-
-
-int chunkfy(uint32_t x_size,
-                      uint32_t x_chunk_size,
-                      uint32_t y_size,
-                      uint32_t y_chunk_size,
-                      uint32_t z_size,
-                      uint32_t z_chunk_size,
-                      uint32_t data_size,
-                      FILE *input_file,
-                      FILE *output_file) {
-  uint32_t x, y, z;
-  uint32_t xc, yc, zc;
-  uint32_t seek;
-  char *buf;
-  
-  buf = (char *)malloc(sizeof(char) * (data_size + 1));
-
-  buf[data_size] = 0;
-
-  for (x = 0; x < x_size; x += x_chunk_size) {
-    for (y = 0; y < y_size; y += y_chunk_size) {
-      for (z = 0; z < z_size; z += z_chunk_size) {
-        for (xc = 0; xc < x_chunk_size; ++xc) {
-          for (yc = 0; yc < y_chunk_size; ++yc) {
-            for (zc = 0; zc < z_chunk_size; ++zc) {
-              seek = (x + xc) + (y + yc) * x_size + (z + zc) *
-                     x_size * y_size;
-              fseek(input_file, seek * data_size, SEEK_SET);
-
-              if (fread(buf, sizeof(char), data_size, input_file) != data_size) {
-                fprintf(stderr, "Error while reading input file");
-                free(buf);
-                return 10;
-              }
-              fwrite(buf, sizeof(char), data_size, output_file);
-            }
-          }
-        }
-        printf(". ");
-        fflush(stdout);
-      }
-    }
-  }
-  free(buf);
-  return 0;
-}
-
-
-int chunkfy_with_cache(uint32_t x_size,
-                      uint32_t x_chunk_size,
-                      uint32_t y_size,
-                      uint32_t y_chunk_size,
-                      uint32_t z_size,
-                      uint32_t z_chunk_size,
-                      uint32_t data_size,
-                      FILE *input_file,
-                      FILE *output_file) {
-  uint32_t x, y, z;
-  uint32_t xc, yc, zc;
-  uint32_t seek;
-  uint32_t content_size;
-  char *content;
-  
-  content_size = x_size*y_size*z_size*data_size;
-  printf("Alocando %d bytes para cache\n", content_size);
-  content = (char*) malloc(sizeof(char)*content_size);
-  if (fread(content, sizeof(char), content_size, input_file) != content_size) {
-    fprintf(stderr, "Error while reading input file");
-    free(content);
-    return 10;
-  }
-
-  for (x = 0; x < x_size; x += x_chunk_size) {
-    for (y = 0; y < y_size; y += y_chunk_size) {
-      for (z = 0; z < z_size; z += z_chunk_size) {
-        for (xc = 0; xc < x_chunk_size; ++xc) {
-          for (yc = 0; yc < y_chunk_size; ++yc) {
-            for (zc = 0; zc < z_chunk_size; ++zc) {
-              seek = (x + xc) + (y + yc) * x_size + (z + zc) *
-                     x_size * y_size;              
-              fwrite(&content[seek * data_size], sizeof(char), data_size, output_file);
-            }
-          }
-        }
-        printf(". ");
-        fflush(stdout);
-      }
-    }
-  }
-  free(content);
-  return 0;
 }

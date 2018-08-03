@@ -1,5 +1,5 @@
 CXX       = gcc
-CXXFLAGS  = -Wall -I. -Winline #-O3 #-fopenmp
+CXXFLAGS  = -Wall -I. -Winline -O3 #-fopenmp
 LDFLAGS =
 
 PROGRAM   = chunkier
