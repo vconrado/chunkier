@@ -49,20 +49,27 @@ size_t get_type_size(uint16_t attr_type);
 
 
 int main(int argc, char *argv[]) {
-
+    int i;
     int dim;
     /* Default values. */
     arguments.array_schema = "";
-    arguments.destination = "./";
+    arguments.destination = NULL;
     arguments.verbose = 0;
     arguments.help = 0;
-
+    
+    for(i=0; i<10; ++i){
+	arguments.args[i] = NULL;
+    }
+    
     argp_parse (&argp, argc, argv, 0, 0, &arguments);
 
-    array_schema_t *array_schema = parse_array_schema(arguments.array_schema);
-    if(arguments.verbose){
-        print_array_schema(array_schema);
+    if (arguments.destination == NULL){
+       fprintf(stderr, "Please, inform folder destination (-d).\n");
+       exit(1);
     }
+
+    array_schema_t *array_schema = parse_array_schema(arguments.array_schema);
+    print_array_schema(array_schema);
     uint64_t start = micros_since_epoch();
     create_array(array_schema);
     uint64_t end = micros_since_epoch();
@@ -105,14 +112,14 @@ void print_array_schema(array_schema_t* array_schema){
                 array_schema->dimensions[i]->chunk_length);
     }
     printf("]\n");
-    printf("dim: (delta,n_chunks)\n");
+    printf("dim: n_chunks\n");
     for(i=0; i<array_schema->dim_len; ++i){
-    printf("%s: (%ld,%ld)\n", 
+    printf("%s: %ld\n", 
             array_schema->dimensions[i]->name,
-            array_schema->dimensions[i]->delta, 
             array_schema->dimensions[i]->n_chunks);
     }
-    printf("total chunk len: %ld\n", array_schema->chunk_length);
+    printf("Chunk total elements: %ld\n", array_schema->chunk_length);
+    printf("Chunk lenght %ld B\n", array_schema->chunk_length*get_type_size(array_schema->attr_type));
 }
 
 
@@ -123,24 +130,24 @@ array_schema_t* exemple_array_schema(char *array_schema){
 
     int i;
     array_schema_t* schema = (array_schema_t*)malloc(sizeof(array_schema_t));
-    schema->attr_type = 1;
+    schema->attr_type = 4;
     schema->dimensions = (dimenstion_t**)malloc(sizeof(dimenstion_t*)*3);
     
     dimenstion_t* col = (dimenstion_t*)malloc(sizeof(dimenstion_t));
     sprintf(col->name,"col");
     col->start = 1;
-    col->end = 50000;
+    col->end = 100000;
     col->overlap = 0;
-    col->chunk_length = 2000;
+    col->chunk_length = 1000;
     col->delta = 1;
     col->n_chunks = (col->end - col->start + 1)/col->chunk_length;
     
     dimenstion_t* row = (dimenstion_t*)malloc(sizeof(dimenstion_t));
     sprintf(row->name,"row");
     row->start = 1;
-    row->end = 50000;
+    row->end = 100000;
     row->overlap = 0;
-    row->chunk_length = 2000;
+    row->chunk_length = 1000;
     row->delta = col->delta*(col->end - col->start + 1);
     row->n_chunks = (row->end - row->start + 1)/row->chunk_length;
 
@@ -152,7 +159,8 @@ array_schema_t* exemple_array_schema(char *array_schema){
     time->chunk_length = 2;
     time->delta = row->delta*(row->end - row->start + 1);
     time->n_chunks = (time->end - time->start + 1)/time->chunk_length;
-    
+   
+/* 
     dimenstion_t* band = (dimenstion_t*)malloc(sizeof(dimenstion_t));
     sprintf(band->name,"band");
     band->start = 1;
@@ -161,12 +169,12 @@ array_schema_t* exemple_array_schema(char *array_schema){
     band->chunk_length = 1;
     band->delta = time->delta *(time->end - time->start + 1);
     band->n_chunks = (band->end - band->start + 1)/band->chunk_length;
-
+*/
     schema->dim_len = 3;
     schema->dimensions[0] = col;
     schema->dimensions[1] = row;
     schema->dimensions[2] = time;
-    schema->dimensions[3] = band;
+  //  schema->dimensions[3] = band;
     
     schema->chunk_length = 1;
     for(i=0; i<schema->dim_len; ++i){
@@ -313,57 +321,66 @@ void free_array_schema(array_schema_t* array_schema){
 
 
 array_schema_t* parse_array_schema(char *array_schema){
-    // TODO implementar parser
-    //    <double>[col=1:1000:0:100,row=1:1000:0:100,time=1:100,0:10]
-    return exemple_array_schema(array_schema);
-    
-    /*
-    regex_t regex;
-    int reti;
-    // "<double>[col=1:1000:0:100;row=1:1000:0:100;time=1:100:0:10]" -d /tmp/chunkier
-    reti = regcomp(&regex, "<([a-z0-9]+)>\\[([a-z0-9=:;]+)\\]", REG_EXTENDED);
-    if (reti) {
-        fprintf(stderr, "Could not compile regex\n");
-        exit(1);
-    }
-    
-    
-    size_t maxMatches = 2;
-    size_t maxGroups = 3;
-    unsigned int m = 0;
-    char *cursor;
-    
-    char cursorCopy[100];
-    regmatch_t groupArray[3];
-    cursor = array_schema;
-    int type_ok = 0;
-    int dim_ok = 0;
-    for (m = 0; m < maxMatches; m ++){
-        if (regexec(&regex, cursor, maxGroups, groupArray, 0)){
-            break;  // No more matches
-        }
 
-        unsigned int g = 0;
-        unsigned int offset = 0;
-        for (g = 0; g < maxGroups; g++){
-            if (groupArray[g].rm_so == (size_t)-1){
-                break;  // No more groups
-            }
-
-            if (g == 0){
-                offset = groupArray[g].rm_eo;
-            }
-        
-          strcpy(cursorCopy, cursor);
-          cursorCopy[groupArray[g].rm_eo] = 0;
-          printf("Match %u, Group %u: [%2u-%2u]: %s\n",
-                 m, g, groupArray[g].rm_so, groupArray[g].rm_eo,
-                 cursorCopy + groupArray[g].rm_so);
-        }
-        cursor += offset;
+    int i;
+    const char *uint32_t_str = "uint32_t";
+    const char *uint64_t_str = "uint64_t";
+    const char *float_str = "float";
+    const char *double_str = "double";
+    char *pEnd;
+    array_schema_t* schema = (array_schema_t*)malloc(sizeof(array_schema_t));
+    if(strcmp(arguments.args[0], uint32_t_str) == 0){
+       schema->attr_type = 1;
+    }else if(strcmp(arguments.args[0], uint64_t_str) == 0){
+       schema->attr_type = 2;
+    }else if(strcmp(arguments.args[0], float_str) == 0){
+       schema->attr_type = 3;
+    }else if(strcmp(arguments.args[0], double_str) == 0){
+       schema->attr_type = 4;
+    }else{
+       fprintf(stderr, "Invalid type %s\n", arguments.args[0]);
+       exit(1);
     }
 
-    //regfree(&regex);
-    //printf("pronto\n");
-    */
+    schema->dimensions = (dimenstion_t**)malloc(sizeof(dimenstion_t*)*3);
+    
+    dimenstion_t* col = (dimenstion_t*)malloc(sizeof(dimenstion_t));
+    sprintf(col->name,"col");
+    col->start = strtol(arguments.args[1], &pEnd, 10);
+    col->end = strtol(arguments.args[2], &pEnd, 10);
+    col->overlap = 0;
+    col->chunk_length = strtol(arguments.args[3], &pEnd, 10);
+    col->delta = 1;
+    col->n_chunks = (col->end - col->start + 1)/col->chunk_length;
+    
+    dimenstion_t* row = (dimenstion_t*)malloc(sizeof(dimenstion_t));
+    sprintf(row->name,"row");
+    row->start = strtol(arguments.args[4], &pEnd, 10);
+    row->end = strtol(arguments.args[5], &pEnd, 10);
+    row->overlap = 0;
+    row->chunk_length = strtol(arguments.args[6], &pEnd, 10);
+    row->delta = col->delta*(col->end - col->start + 1);
+    row->n_chunks = (row->end - row->start + 1)/row->chunk_length;
+
+    dimenstion_t* time = (dimenstion_t*)malloc(sizeof(dimenstion_t));
+    sprintf(time->name,"time");
+    time->start = strtol(arguments.args[7], &pEnd, 10);
+    time->end = strtol(arguments.args[8], &pEnd, 10);
+    time->overlap = 0;
+    time->chunk_length = strtol(arguments.args[9], &pEnd, 10);
+    time->delta = row->delta*(row->end - row->start + 1);
+    time->n_chunks = (time->end - time->start + 1)/time->chunk_length;
+   
+    schema->dim_len = 3;
+    schema->dimensions[0] = col;
+    schema->dimensions[1] = row;
+    schema->dimensions[2] = time;
+    
+    schema->chunk_length = 1;
+    for(i=0; i<schema->dim_len; ++i){
+        schema->chunk_length*=schema->dimensions[i]->chunk_length;
+    }
+    
+    return schema;
 }
+

@@ -6,7 +6,8 @@
 const char *argp_program_version = "chunkier 0.1";
 const char *argp_program_bug_address = "<vconrado@gmail.com>";
 static char doc[] = "Chunkier creates chunks with arbitrary dimensions and sizes.";
-static char args_doc[] = " \"<double>[col=1:1000:0:100,row=1:1000:0:100,time=1:100,0:10]\" ...";
+//static char args_doc[] = " \"<double>[col=1:1000:0:100,row=1:1000:0:100,time=1:100,0:10]\" ...";
+static char args_doc[] = " \"uint32_t|uint64_t|float|double col_start col_end col_chunk row_start row_end row_chunk time_start time_end time_chunk\" ...";
 static struct argp_option options[] = { 
     {"dest",            'd',    "FOLDER",  0,  "Folder destination"},
     {"verbose",         'v',    0,              0,  "Produce verbose output" },
@@ -19,6 +20,7 @@ struct arguments
   char *destination;
   int verbose;
   int help;
+  char *args[10];
 };
 
 static error_t
@@ -36,15 +38,15 @@ parse_opt (int key, char *arg, struct argp_state *state) {
             strcpy(arguments->destination,arg);
             break;
         case ARGP_KEY_ARG:
-            if (state->arg_num >= 1){
+            if (state->arg_num >= 10){
                 /* Too many arguments. */
                 argp_usage (state);
             }
-            arguments->array_schema = (char*)malloc(sizeof(char)*strlen(arg));
-            strcpy(arguments->array_schema,arg);
+            arguments->args[state->arg_num] = (char*)malloc(sizeof(char)*strlen(arg));
+            strcpy(arguments->args[state->arg_num],arg);
           break;
         case ARGP_KEY_END:
-            if (state->arg_num < 1){
+            if (state->arg_num < 10){
                 /* Not enough arguments. */
                 argp_usage (state);
             }
