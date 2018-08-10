@@ -8,8 +8,9 @@ const char *argp_program_bug_address = "<vconrado@gmail.com>";
 static char doc[] = "Chunkier creates chunks with arbitrary dimensions and sizes.";
 static char args_doc[] = " \"<double>[col=1:1000:0:100,row=1:1000:0:100,time=1:100,0:10]\" ...";
 static struct argp_option options[] = { 
-    {"dest",            'd',    "FOLDER",  0,  "Folder destination"},
-    {"verbose",         'v',    0,              0,  "Produce verbose output" },
+    {"dest",            'd',    "FOLDER",   0,  "Folder destination"},
+    {"trial",           't',    0,          0,  "Perform a trial run with no file creation"},
+    {"verbose",         'v',    0,          0,  "Produce verbose output" },
     { 0 } 
 };
 
@@ -17,6 +18,7 @@ struct arguments
 {
   char *array_schema;
   char *destination;
+  int trial;
   int verbose;
   int help;
 };
@@ -34,6 +36,9 @@ parse_opt (int key, char *arg, struct argp_state *state) {
         case 'd':
             arguments->destination = (char*)malloc(sizeof(char)*strlen(arg));
             strcpy(arguments->destination,arg);
+            break;
+        case 't':
+            arguments->trial = 1;
             break;
         case ARGP_KEY_ARG:
             if (state->arg_num >= 1){
